@@ -13,6 +13,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+
 def parse_final(result_file):
     with open(result_file, 'r') as f:
         for line in f:
@@ -25,7 +26,7 @@ def make_message_writer(verbose_, class_name_, enter_message_=False):
     class MessageWriter(object):
         class_name = class_name_
 
-        def __init__(self, method_name = None, verbose=None, enter_message=None):
+        def __init__(self, method_name=None, verbose=None, enter_message=None):
             self.verbose = verbose or verbose_
             self.method_name = method_name or "unknown_method"
             self.enter_message = enter_message or enter_message_
@@ -53,12 +54,10 @@ def make_message_writer(verbose_, class_name_, enter_message_=False):
             if exit_all:
                 exit()
 
-
         @classmethod
         def static_log(cls, method_name, verbose, *args, **kwargs):
             if verbose:
                 print(f"INFO [{cls.class_name}:{method_name}]", *args, **kwargs)
-
 
         def __enter__(self):
             if self.enter_message:

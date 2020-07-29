@@ -38,6 +38,6 @@ export AMBERHOME=...../amber20
 export OE_LICENSE=...../oe_license.txt
 source $AMBERHOME/amber.sh
 conda activate myenv #do this after the source.
-CUDA_VISIBLE_DEVICES=0 python main.py --amber_path $AMBERHOME --pdb /homes/aclyde/MPro_0387_Gen3L_5.pdb -v 0 \ 
+CUDA_VISIBLE_DEVICES=0 python run_mmgpbsa.py --amber_path $AMBERHOME --pdb /homes/aclyde/MPro_0387_Gen3L_5.pdb -v 0 \ 
                --odir testdir --ps 100 --traj_frames 5 --method gbsa --equil_steps 100000 --use_gpu
 ```

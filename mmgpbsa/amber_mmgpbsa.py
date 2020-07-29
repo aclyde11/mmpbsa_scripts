@@ -1,6 +1,6 @@
 import subprocess
 
-from utils import working_directory, parse_final
+from mmgpbsa.utils import working_directory, parse_final
 
 
 def get_mmgbsa_input(pbsa=False):
@@ -34,7 +34,7 @@ def run_amber(amber_path, dir_path, pbsa=False, verbose=1):
 
         args = {}
         if verbose < 2:
-            args = {'stdout' : subprocess.DEVNULL, 'stderr' : subprocess.DEVNULL}
+            args = {'stdout': subprocess.DEVNULL, 'stderr': subprocess.DEVNULL}
 
         with open("runamber.sh", 'w') as f:
             f.write(f"source {amber_path}/amber.sh\n")

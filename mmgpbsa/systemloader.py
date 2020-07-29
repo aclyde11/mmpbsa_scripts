@@ -6,7 +6,7 @@ from openeye import oechem, oequacpac
 from simtk import unit
 from simtk.openmm import app
 
-from utils import make_message_writer, working_directory
+from mmgpbsa.utils import make_message_writer, working_directory
 
 
 class Config:
@@ -66,8 +66,6 @@ class SystemLoader:
             self.input_pdb = input_pdb
             self.config = Config(**kwargs)
 
-
-
     def split_complex_from_system(self):
         with self.logger("split_complex_from_system") as logger:
             pdb = oechem.OEMol()
@@ -87,7 +85,8 @@ class SystemLoader:
             if not oechem.OESplitMolComplex(lig, prot, wat, other, pdb):
                 logger.failure("could not split complex. exiting", exit_all=True)
             else:
-                logger.log(f"Split complex. atom sizes-- lig: {len(list(lig.GetAtoms()))}, prot: {len(list(prot.GetAtoms()))}, water: {len(list(wat.GetAtoms()))}, other: {len(list(other.GetAtoms()))}")
+                logger.log(
+                    f"Split complex. atom sizes-- lig: {len(list(lig.GetAtoms()))}, prot: {len(list(prot.GetAtoms()))}, water: {len(list(wat.GetAtoms()))}, other: {len(list(other.GetAtoms()))}")
 
             return prot, lig
 
