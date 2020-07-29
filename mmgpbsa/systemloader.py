@@ -206,7 +206,7 @@ class SystemLoader:
                                                                   potentialEnergy=True, temperature=True,
                                                                   progress=True,
                                                                   remainingTime=True,
-                                                                  speed=True, totalSteps=self.config.total_steps,
+                                                                  speed=True, totalSteps=self.config.total_steps + self.config.equil_steps,
                                                                   separator='\t'))
 
             logger.log(f'Running Production for {self.config.total_steps} steps, or {(self.config.total_steps * self.config.step_size).in_units_of(unit.nanosecond)}')
