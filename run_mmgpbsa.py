@@ -71,4 +71,5 @@ if __name__ == '__main__':
                       )
     sl.prepare_simulation()
 
-    print(run_amber(args.amber_path, args.odir, verbose=args.v, pbsa=(args.method == 'pbsa')))
+    deltag = sl.run_amber(args.method == 'pbsa', args.amber_path)
+    print(deltag)

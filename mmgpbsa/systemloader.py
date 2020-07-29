@@ -6,6 +6,7 @@ from openeye import oechem, oequacpac
 from simtk import unit
 from simtk.openmm import app
 
+from mmgpbsa.amber_mmgpbsa import run_amber
 from mmgpbsa.utils import make_message_writer, working_directory
 
 
@@ -178,6 +179,12 @@ class SystemLoader:
                 return system
             except Exception as e:
                 logger.error("EXCEPTION CAUGHT BAD SPOT", e)
+
+
+    def run_amber(self, method, amber_path):
+        with self.logger('run_amber') as logger:
+            logger.log("Calculating mmgb/pbsa value...may take awhile.")
+            return run_amber(amber_path, self.dirpath, verbose=self.verbose, pbsa=(method == 'pbsa'))
 
     def prepare_simulation(self):
         with self.logger("prepare_simulation") as logger:
