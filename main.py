@@ -26,7 +26,6 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    args.v = 0
 
 
     if args.odir is None:
