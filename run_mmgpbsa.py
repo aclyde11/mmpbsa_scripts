@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import shutil
 import warnings
 
 from mmgpbsa.amber_mmgpbsa import run_amber
@@ -42,6 +43,9 @@ if __name__ == '__main__':
         if not os.path.isdir(args.odir):
             print("Creation of the directory %s failed" % args.odir)
             exit()
+        else:
+            shutil.rmtree(args.odir)
+            os.mkdir(args.odir)
     else:
         if args.v >= 1:
             print("Successfully created the directory %s " % args.odir)
