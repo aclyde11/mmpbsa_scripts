@@ -29,6 +29,7 @@ def get_receptor(complex_file):
     prot, lig = split_complex_from_system(complex_file)
     receptor = oechem.OEGraphMol()
     oedocking.OEMakeReceptor(receptor, prot, lig)
+    oedocking.OEWriteReceptorFile(receptor, '/Users/austin/mpro.oeb')
     return receptor, lig
 
 
@@ -53,7 +54,7 @@ def score_and_build(complex_pdb):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--complex', type=str, default=None, required=False)
+    parser.add_argument('--complex', type=str, default='/Users/austin/MPro-docked/MPro_0387_Gen3L_21.pdb', required=False)
     return parser.parse_args()
 
 

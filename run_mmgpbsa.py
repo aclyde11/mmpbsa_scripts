@@ -14,13 +14,15 @@ def get_args():
                         help='path to amber installation folder (ex /home/austin/amber20)')
     parser.add_argument('--pdb', type=str,
                         help='pdb input file with ligand and protein in complex. Only one chain for now please!')
-    parser.add_argument('--use_gpu', action='store_true')
+    parser.add_argument('--cuda', action='store_true')
+    parser.add_argument('--opencl', action='store_true')
     ##simulation options
-    parser.add_argument('--ps', type=int, default=None, required=False, help='picoseconds to run simulation')
-    parser.add_argument('--equil_steps', type=int, default=None, required=False,
-                        help='number of steps to run equil (not used for gb/pbsa calc)')
+    parser.add_argument('--ps', type=float, default=None, required=False, help='picoseconds to run simulation')
+    parser.add_argument('--equil_ps', type=float, default=None, required=False,
+                        help='number of ps to run equil (not used for gb/pbsa calc)')
     parser.add_argument('--traj_frames', type=int, default=None, required=False,
                         help='number of frames averaged over trajectory for calculation')
+    parser.add_argument('--mbar', type=int, required=False, default=0)
     parser.add_argument('--method', type=str, choices=['gbsa', 'pbsa'], default='gbsa', help='use pbsa or gbsa')
 
     ## logging options
@@ -66,8 +68,10 @@ if __name__ == '__main__':
                       input_pdb=args.pdb,
                       ps=args.ps,
                       calcFrames=args.traj_frames,
-                      equil_steps=args.equil_steps,
-                      use_gpu=args.use_gpu
+                      equil_ps=args.equil_ps,
+                      cuda=args.cuda,
+                      opencl=args.opencl,
+                      mbar=args.mbar
                       )
     sl.prepare_simulation()
 

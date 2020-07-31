@@ -11,49 +11,67 @@ from mmgpbsa.utils import make_message_writer, working_directory
 
 
 class Config:
-    def __init__(self, calcFrames = None, temperature=None, frictionCoeff=None, stepSize=None, constraintTolerance=None,
-                 use_gpu=None, reportInterval=None, ps=None, nonbondedCutoff=None, constraints=None,
-                 implicitSolvent=None, equil_steps=None, solventDielectric=None, soluteDielectric=None):
-
+    defaults_config = {
 
         ## System Params
-        self.nonbondedMethod = app.CutoffNonPeriodic
-        self.rigid_water = True
-        self.removeCMMotion = True
+        'nonbondedMethod': app.CutoffNonPeriodic,
+        'rigid_water': True,
+        'removeCMMotion': True,
 
-        self.nonbondedCutoff = nonbondedCutoff or (1.0 * unit.nanometer)
-        self.constraints = constraints or app.HBonds
-        self.implicitSolvent = implicitSolvent or app.GBn2
-        self.soluteDielectric = soluteDielectric or 1.0
-        self.solventDielectric = solventDielectric or 78.5
+        "nonbondedCutoff": 1.0 * unit.nanometer,
+        "constraints": app.HBonds,
+        "implicitSolvent": app.GBn2,
+        "soluteDielectric": 1.0,
+        "solventDielectric": 78.5,
+        "igb" : 5,
 
         ## Integrator Params
-        self.temperature = temperature or (300 * unit.kelvin)
-        self.frictionCoeff = frictionCoeff or (1.0 / unit.picoseconds)
-        self.stepSize = stepSize or (2.0 * unit.femtoseconds)
-        self.constraintTolerance = constraintTolerance or 0.00001
+        "temperature": 310.15 * unit.kelvin,
+        "frictionCoeff": 1.0 / unit.picoseconds,
+        "stepSize": 2.0 * unit.femtoseconds,
+        "constraintTolerance": 0.00001,
+
+        'cuda': False,
+        'opencl': False,
+        'platform_name': 'CPU',
+        'platform_properties': {},
+
+        'reportInterval': 5000,
+        'equil_ps': 2,
+        'ps': 2,
+        'calcFrames': 4,
+        'mbar' : 0
+    }
+
+    def __init__(self, **kwargs):
+
+        self.__dict__.update(self.defaults_config)
+
+        for k, v in kwargs.items():
+            if k in self.__dict__:
+                if v is not None:
+                    self.__dict__[k] = v
 
         ## Simulation Params
-        if use_gpu:
+        if self.cuda:
             self.platform_name = 'CUDA'
             self.platform_properties = {'Precision': 'mixed'}
-        else:
+        elif self.opencl:
             self.platform_name = 'OpenCL'
             self.platform_properties = {'Precision': 'mixed'}
 
-            # self.platform_name = 'CPU'
-            # self.platform_properties = {}
+        if not isinstance(self.ps, unit.Quantity):
+            self.ps = self.ps * unit.picosecond
+        if not isinstance(self.equil_ps, unit.Quantity):
+            self.equil_ps = self.equil_ps * unit.picosecond
 
-        ## Log Parms
-        self.reportInterval = reportInterval or 5000 # 10ps if stepsize is 2fs
-        self.equil_steps = equil_steps or 100
-        self.ps = ps or 20 #
-        self.ps = self.ps * unit.picosecond
-        self.step_size = self.stepSize
-        self.total_steps = int(self.ps / self.step_size)
+        self.total_ps = self.equil_ps + self.ps
+        self.equil_steps = int(self.equil_ps / self.stepSize)
+        self.production_steps = int(self.ps / self.stepSize)
+        self.total_steps = int(self.total_ps / self.stepSize)
+        self.trajInterval = int(self.production_steps / self.calcFrames)
 
-        self.calcFrames = calcFrames or 10
-        self.trajInterval = int(self.total_steps / self.calcFrames)
+
 
 
 class SystemLoader:
@@ -184,11 +202,10 @@ class SystemLoader:
     def run_amber(self, method, amber_path):
         with self.logger('run_amber') as logger:
             logger.log("Calculating mmgb/pbsa value...may take awhile.")
-            return run_amber(amber_path, self.dirpath, verbose=self.verbose, pbsa=(method == 'pbsa'))
+            return run_amber(amber_path, self.dirpath, verbose=self.verbose, igb=self.config.igb, pbsa=(method == 'pbsa'))
 
     def prepare_simulation(self):
         with self.logger("prepare_simulation") as logger:
-
             system = self.__setup_system_im()
             integrator = mm.LangevinIntegrator(self.config.temperature, self.config.frictionCoeff,
                                                self.config.stepSize)
@@ -196,26 +213,29 @@ class SystemLoader:
 
             platform = mm.Platform.getPlatformByName(self.config.platform_name)
             simulation = app.Simulation(self.topology, system, integrator, platform, self.config.platform_properties)
-            logger.log(f"Built simulation using platform {self.config.platform_name} with properties {self.config.platform_properties}")
+            logger.log(
+                f"Built simulation using platform {self.config.platform_name} with properties {self.config.platform_properties}")
             simulation.context.setPositions(self.positions)
 
             logger.log(f'Minimizing and setting velocities to {self.config.temperature}')
             simulation.minimizeEnergy()
             simulation.context.setVelocitiesToTemperature(self.config.temperature)
-            logger.log(f'Equilibrating for {self.config.equil_steps * self.config.step_size} steps, or {(self.config.equil_steps * self.config.step_size).in_units_of(unit.picosecond)}')
+
+            if self.verbose >= 1:
+                simulation.reporters.append(
+                    app.StateDataReporter(stdout, max(self.config.reportInterval - 1, 1), step=True,
+                                          potentialEnergy=True, temperature=True,
+                                          progress=True,
+                                          remainingTime=True,
+                                          speed=True, totalSteps=self.config.total_steps,
+                                          separator='\t'))
+
+            logger.log(f'Equilibrating for {self.config.equil_steps} steps, or {self.config.equil_ps}')
             simulation.step(self.config.equil_steps)
 
             simulation.reporters.append(
-                    app.DCDReporter(f'{self.dirpath}/trajectory.dcd', self.config.trajInterval))
+                app.DCDReporter(f'{self.dirpath}/trajectory.dcd', max(self.config.trajInterval - 1, 1)))
 
-            if self.verbose >= 1:
-                simulation.reporters.append(app.StateDataReporter(stdout, self.config.reportInterval, step=True,
-                                                                  potentialEnergy=True, temperature=True,
-                                                                  progress=True,
-                                                                  remainingTime=True,
-                                                                  speed=True, totalSteps=self.config.total_steps + self.config.equil_steps,
-                                                                  separator='\t'))
-
-            logger.log(f'Running Production for {self.config.total_steps} steps, or {(self.config.total_steps * self.config.step_size).in_units_of(unit.nanosecond)}')
-            simulation.step(self.config.total_steps)
+            logger.log(f'Running Production for {self.config.production_steps} steps, or {self.config.ps}')
+            simulation.step(self.config.production_steps)
             logger.log(f"")
