@@ -3,8 +3,8 @@ import subprocess
 from mmgpbsa.utils import working_directory, parse_final
 
 
-def get_mmgbsa_input(pbsa=False, igb=5):
-    if pbsa:
+def get_mmgbsa_input(use_pbsa=False, igb=5):
+    if use_pbsa:
         str = (f"""&general
 startframe=1,
 verbose=2,
@@ -28,9 +28,9 @@ keep_files=0,
         f.write(str)
 
 
-def run_amber(amber_path, dir_path, pbsa=False, igb=5, verbose=1):
+def run_amber(amber_path, dir_path, use_pbsa=False, igb=5, verbose=1):
     with working_directory(dir_path):
-        get_mmgbsa_input(pbsa, igb)
+        get_mmgbsa_input(use_pbsa, igb)
 
         args = {}
         if verbose < 2:

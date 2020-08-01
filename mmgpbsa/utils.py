@@ -18,7 +18,7 @@ def parse_final(result_file):
     with open(result_file, 'r') as f:
         for line in f:
             if "DELTA TOTAL" in line:
-                return float(line.split()[2])
+                return float(line.split()[2]), float(line.split()[3])
         return None
 
 

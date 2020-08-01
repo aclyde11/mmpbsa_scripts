@@ -1,13 +1,28 @@
 import subprocess
 from sys import stdout
 
+import mdtraj as md
+import numpy as np
 import simtk.openmm as mm
 from openeye import oechem, oequacpac
+from pymbar import timeseries
 from simtk import unit
 from simtk.openmm import app
 
 from mmgpbsa.amber_mmgpbsa import run_amber
 from mmgpbsa.utils import make_message_writer, working_directory
+
+
+def subsample(enthalpies):
+    """
+    Subsamples the enthalpies using John Chodera's code.
+    This is probably better than the simple cutoff we normally use.
+    No output -- it modifies the lists directly
+    """
+    # Use automatic equilibration detection and pymbar.timeseries to subsample
+    [t0, g, Neff_max] = timeseries.detectEquilibration(enthalpies)
+    enthalpies = enthalpies[t0:]
+    return timeseries.subsampleCorrelatedData(enthalpies, g=g)
 
 
 class Config:
@@ -23,7 +38,7 @@ class Config:
         "implicitSolvent": app.GBn2,
         "soluteDielectric": 1.0,
         "solventDielectric": 78.5,
-        "igb" : 5,
+        "igb": 5,
 
         ## Integrator Params
         "temperature": 310.15 * unit.kelvin,
@@ -31,16 +46,14 @@ class Config:
         "stepSize": 2.0 * unit.femtoseconds,
         "constraintTolerance": 0.00001,
 
-        'cuda': False,
-        'opencl': False,
         'platform_name': 'CPU',
         'platform_properties': {},
 
-        'reportInterval': 5000,
-        'equil_ps': 2,
-        'ps': 2,
-        'calcFrames': 4,
-        'mbar' : 0
+        'reportInterval': 1250,
+        'equil_ps': 10,
+        'ps': 10,
+        'calcFrames': None,
+        'mbar': 50
     }
 
     def __init__(self, **kwargs):
@@ -53,11 +66,7 @@ class Config:
                     self.__dict__[k] = v
 
         ## Simulation Params
-        if self.cuda:
-            self.platform_name = 'CUDA'
-            self.platform_properties = {'Precision': 'mixed'}
-        elif self.opencl:
-            self.platform_name = 'OpenCL'
+        if self.platform_name in ['OpenCL', 'CUDA']:
             self.platform_properties = {'Precision': 'mixed'}
 
         if not isinstance(self.ps, unit.Quantity):
@@ -65,13 +74,14 @@ class Config:
         if not isinstance(self.equil_ps, unit.Quantity):
             self.equil_ps = self.equil_ps * unit.picosecond
 
+        if self.mbar is not None and self.mbar > 0:
+            self.calcFrames = self.mbar
+
         self.total_ps = self.equil_ps + self.ps
         self.equil_steps = int(self.equil_ps / self.stepSize)
         self.production_steps = int(self.ps / self.stepSize)
         self.total_steps = int(self.total_ps / self.stepSize)
         self.trajInterval = int(self.production_steps / self.calcFrames)
-
-
 
 
 class SystemLoader:
@@ -134,7 +144,7 @@ class SystemLoader:
 
             self.charged_lig = oechem.OEMol(oemol)
 
-    def prepare_protein(self, protein, verbose=True):
+    def prepare_protein(self, protein):
         with self.logger("prepare_protein") as logger:
             ofs = oechem.oemolostream()
             oemol = oechem.OEMol(protein)
@@ -188,24 +198,31 @@ class SystemLoader:
 
                     prmtop = app.AmberPrmtopFile(f'com.prmtop')
                     inpcrd = app.AmberInpcrdFile(f'com.inpcrd')
+                    with open('com.pdb', 'w') as f:
+                        app.pdbfile.PDBFile.writeFile(prmtop.topology, inpcrd.positions, file=f)
 
                 system = prmtop.createSystem(nonbondedMethod=self.config.nonbondedMethod,
-                                             nonbondedCutoff=self.config.nonbondedCutoff, rigidWater=self.config.rigid_water,
-                                             constraints=self.config.constraints, implicitSolvent=self.config.implicitSolvent,
-                                             soluteDielectric=self.config.soluteDielectric, solventDielectric=self.config.solventDielectric, removeCMMotion=self.config.removeCMMotion)
+                                             nonbondedCutoff=self.config.nonbondedCutoff,
+                                             rigidWater=self.config.rigid_water,
+                                             constraints=self.config.constraints,
+                                             implicitSolvent=self.config.implicitSolvent,
+                                             soluteDielectric=self.config.soluteDielectric,
+                                             solventDielectric=self.config.solventDielectric,
+                                             removeCMMotion=self.config.removeCMMotion)
                 self.topology, self.positions = prmtop.topology, inpcrd.positions
                 return system
             except Exception as e:
                 logger.error("EXCEPTION CAUGHT BAD SPOT", e)
 
-
-    def run_amber(self, method, amber_path):
+    def run_amber(self, method: str, amber_path):
         with self.logger('run_amber') as logger:
             logger.log("Calculating mmgb/pbsa value...may take awhile.")
-            return run_amber(amber_path, self.dirpath, verbose=self.verbose, igb=self.config.igb, pbsa=(method == 'pbsa'))
+            return run_amber(amber_path, self.dirpath, verbose=self.verbose, igb=self.config.igb,
+                             use_pbsa=(method == 'pbsa'))
 
     def prepare_simulation(self):
         with self.logger("prepare_simulation") as logger:
+
             system = self.__setup_system_im()
             integrator = mm.LangevinIntegrator(self.config.temperature, self.config.frictionCoeff,
                                                self.config.stepSize)
@@ -234,8 +251,27 @@ class SystemLoader:
             simulation.step(self.config.equil_steps)
 
             simulation.reporters.append(
-                app.DCDReporter(f'{self.dirpath}/trajectory.dcd', max(self.config.trajInterval - 1, 1)))
+                app.DCDReporter(f'{self.dirpath}/trajectory.dcd',
+                                max(self.config.trajInterval - 1 if self.config.mbar == 0 else self.config.mbar, 1)))
 
             logger.log(f'Running Production for {self.config.production_steps} steps, or {self.config.ps}')
-            simulation.step(self.config.production_steps)
-            logger.log(f"")
+            if self.config.mbar > 0:
+                enthalpies = np.zeros((self.config.mbar))
+                for i in range(self.config.mbar):
+                    simulation.step(int(self.config.production_steps / self.config.mbar))
+                    state = simulation.context.getState(getEnergy=True)
+                    potential_energy = state.getPotentialEnergy()
+                    enthalpies[i] = potential_energy.value_in_unit(unit.kilojoules_per_mole)
+                logger.log(f"Simulation Done. Running MBAR on {self.config.mbar} snapshots.")
+
+                idx = np.array(subsample(enthalpies))
+                traj = md.load(f'{self.dirpath}/trajectory.dcd', top=f'{self.dirpath}/com.pdb')
+                traj = traj[idx]
+                traj.save_dcd(f'{self.dirpath}/trajectory.dcd', force_overwrite=True)
+
+                logger.log(f"Done. Subsampled {len(idx)} from {self.config.mbar} snapshots.")
+
+                return enthalpies
+            else:
+                simulation.step(self.config.production_steps)
+                logger.log(f"Simulation Done")
