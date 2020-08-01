@@ -53,7 +53,7 @@ class Config:
         'equil_ps': 10,
         'ps': 10,
         'calcFrames': None,
-        'mbar': 50
+        'mbar': 30
     }
 
     def __init__(self, **kwargs):

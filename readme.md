@@ -1,3 +1,12 @@
+ # Component Scoring
+ 
+ ```
+python component_scoring.py --complex ligand_protein.pdb
+{'Chemgauss4 Score': -1.69817316532135, 'CG3:Steric': -8.180750846862793, 'CG3:Clash': 0.5142186284065247, 'CG3:ProDesolv': 5.004239082336426, 'CG3:LigDesolv': 1.1996185779571533, 'CG3:LigDesolvHB': -0.012127834372222424, 'CG4:HB': -0.22337093949317932} 
+```
+ 
+ 
+ # Free Energy Estimation
  
  
  
@@ -15,7 +24,8 @@ Create a new Conda env with python 3.7 and install the following packages below.
 ```
 conda create -n myenv python=3.7 -y
 conda activate myenv
-conda install -c conda-forge -c omnia -c openeye openmm openeye-toolkits pymbar parmed ambertools
+conda install -c conda-forge -c omnia -c openeye openmm openeye-toolkits pymbar 
+pip install mdtraj
 ``` 
 
 
