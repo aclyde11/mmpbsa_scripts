@@ -86,36 +86,64 @@ class Config:
 
 class SystemLoader:
 
-    def __init__(self, dirpath, verbose, input_pdb, **kwargs):
+    def __init__(self, dirpath, verbose, input_pdb=None, apo=None, lig=None, **kwargs):
         self.verbose = verbose
         self.logger = make_message_writer(self.verbose >= 1, self.__class__.__name__, verbose >= 2)
 
         with self.logger("__init__") as logger:
             self.dirpath = dirpath
             self.input_pdb = input_pdb
+            self.apo = apo
+            self.lig = lig
             self.config = Config(**kwargs)
 
     def split_complex_from_system(self):
         with self.logger("split_complex_from_system") as logger:
-            pdb = oechem.OEMol()
-            prot = oechem.OEMol()
-            lig = oechem.OEMol()
-            wat = oechem.OEGraphMol()
-            other = oechem.OEGraphMol()
-            ifs = oechem.oemolistream()
-            ifs.SetFlavor(oechem.OEFormat_PDB,
-                          oechem.OEIFlavor_PDB_Default | oechem.OEIFlavor_PDB_DATA | oechem.OEIFlavor_PDB_ALTLOC)  # noqa
-            if ifs.open(self.input_pdb):
-                oechem.OEReadMolecule(ifs, pdb)
+            if self.input_pdb is not None:
+                pdb = oechem.OEMol()
+                prot = oechem.OEMol()
+                lig = oechem.OEMol()
+                wat = oechem.OEGraphMol()
+                other = oechem.OEGraphMol()
+                ifs = oechem.oemolistream()
+                ifs.SetFlavor(oechem.OEFormat_PDB,
+                              oechem.OEIFlavor_PDB_Default | oechem.OEIFlavor_PDB_DATA | oechem.OEIFlavor_PDB_ALTLOC)  # noqa
+                if ifs.open(self.input_pdb):
+                    oechem.OEReadMolecule(ifs, pdb)
+                else:
+                    logger.error("Could not open file!")
+                ifs.close()
+                logger.log(f"Reading input PDB {self.input_pdb}")
+                if not oechem.OESplitMolComplex(lig, prot, wat, other, pdb):
+                    logger.failure("could not split complex. exiting", exit_all=True)
+                else:
+                    logger.log(
+                        f"Split complex. atom sizes-- lig: {len(list(lig.GetAtoms()))}, prot: {len(list(prot.GetAtoms()))}, water: {len(list(wat.GetAtoms()))}, other: {len(list(other.GetAtoms()))}")
             else:
-                logger.error("Could not open file!")
-            ifs.close()
-            logger.log(f"Reading input PDB {self.input_pdb}")
-            if not oechem.OESplitMolComplex(lig, prot, wat, other, pdb):
-                logger.failure("could not split complex. exiting", exit_all=True)
-            else:
-                logger.log(
-                    f"Split complex. atom sizes-- lig: {len(list(lig.GetAtoms()))}, prot: {len(list(prot.GetAtoms()))}, water: {len(list(wat.GetAtoms()))}, other: {len(list(other.GetAtoms()))}")
+                pdb = oechem.OEMol()
+                prot = oechem.OEMol()
+                lig = oechem.OEMol()
+                wat = oechem.OEGraphMol()
+                other = oechem.OEGraphMol()
+                ifs = oechem.oemolistream()
+                ifs.SetFlavor(oechem.OEFormat_PDB,
+                              oechem.OEIFlavor_PDB_Default | oechem.OEIFlavor_PDB_DATA | oechem.OEIFlavor_PDB_ALTLOC)  # noqa
+                if ifs.open(self.input_pdb):
+                    oechem.OEReadMolecule(ifs, pdb)
+                else:
+                    logger.error("Could not open file!")
+                ifs.close()
+                logger.log(f"Reading input PDB {self.input_pdb}")
+                if not oechem.OESplitMolComplex(lig, prot, wat, other, pdb):
+                    logger.failure("could not split complex. exiting", exit_all=True)
+                else:
+                    logger.log(
+                        f"Split complex. atom sizes-- lig: {len(list(lig.GetAtoms()))}, prot: {len(list(prot.GetAtoms()))}, water: {len(list(wat.GetAtoms()))}, other: {len(list(other.GetAtoms()))}")
+
+                ifs = oechem.oemolistream(self.lig)
+                lig = oechem.OEMol()
+                oechem.OEReadMolecule(ifs, lig)
+                ifs.close()
 
             return prot, lig
 

@@ -12,8 +12,13 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--amber_path', type=str, default=None, required=False,
                         help='path to amber installation folder (ex /home/austin/amber20)')
-    parser.add_argument('--pdb', type=str,
+    parser.add_argument('--com', type=str, default=None,
                         help='pdb input file with ligand and protein in complex. Only one chain for now please!')
+    parser.add_argument('--apo', type=str, default=None,
+                        help='pdb input file without ligand. Only one chain for now please!')
+    parser.add_argument('--com', type=str, default=None,
+                        help='file input file with ligand.')
+
     parser.add_argument('--platform', type=str, choices=['CPU', 'CUDA', 'OpenCL'], default=None)
     ##simulation options
     parser.add_argument('--ps', type=float, default=None, required=False, help='picoseconds to run simulation')
@@ -63,15 +68,30 @@ if __name__ == '__main__':
     logging.getLogger('openmmtools').setLevel(logging.ERROR)
     warnings.filterwarnings("ignore")
 
-    sl = SystemLoader(dirpath=args.odir,
-                      verbose=args.v,
-                      input_pdb=args.pdb,
-                      ps=args.ps,
-                      calcFrames=args.calcFrames,
-                      equil_ps=args.equil_ps,
-                      platform_name=args.platform,
-                      mbar=args.mbar
-                      )
+    if args.com is None:
+        if args.apo is not None and args.lig is not None:
+            print("if args.com is None, args.apo and args.lig is not None")
+            exit()
+        else:
+            sl = SystemLoader(dirpath=args.odir,
+                              verbose=args.v,
+                              input_pdb=args.pdb,
+                              ps=args.ps,
+                              calcFrames=args.calcFrames,
+                              equil_ps=args.equil_ps,
+                              platform_name=args.platform,
+                              mbar=args.mbar
+                              )
+    else:
+        sl = SystemLoader(dirpath=args.odir,
+                          verbose=args.v,
+                          input_pdb=args.pdb,
+                          ps=args.ps,
+                          calcFrames=args.calcFrames,
+                          equil_ps=args.equil_ps,
+                          platform_name=args.platform,
+                          mbar=args.mbar
+                          )
     sl.prepare_simulation()
 
     deltag, std = sl.run_amber(args.method, args.amber_path)

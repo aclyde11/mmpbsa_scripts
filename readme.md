@@ -56,7 +56,7 @@ export AMBERHOME=...../amber20
 export OE_LICENSE=...../oe_license.txt
 source $AMBERHOME/amber.sh
 conda activate myenv #do this after the source.
-CUDA_VISIBLE_DEVICES=0 python run_mmgpbsa.py --pdb /homes/aclyde/MPro_0387_Gen3L_5.pdb -v 0 \ 
+CUDA_VISIBLE_DEVICES=0 python run_mmgpbsa.py --com /homes/aclyde/MPro_0387_Gen3L_5.pdb -v 0 \ 
                --odir testdir --platform CUDA
 ```
 
@@ -64,7 +64,7 @@ If the script is being wonky, try passing ```--amber_path $AMBERHOME```, though 
 
 #### Example output
 ```
-/Users/austin/anaconda3/envs/mmpbsa_scripts/bin/python /Users/austin/PycharmProjects/mmpbsa_scripts/run_mmgpbsa.py --pdb /Users/austin/MPro-docked/MPro_0387_Gen3L_5.pdb --odir /Users/austin/PycharmProjects/mmpbsa_scripts/test --platform OpenCL
+/Users/austin/anaconda3/envs/mmpbsa_scripts/bin/python /Users/austin/PycharmProjects/mmpbsa_scripts/run_mmgpbsa.py --com /Users/austin/MPro-docked/MPro_0387_Gen3L_5.pdb --odir /Users/austin/PycharmProjects/mmpbsa_scripts/test --platform OpenCL
 INFO [SystemLoader:split_complex_from_system] Reading input PDB /Users/austin/MPro-docked/MPro_0387_Gen3L_5.pdb
 INFO [SystemLoader:split_complex_from_system] Split complex. atom sizes-- lig: 18, prot: 2370, water: 22, other: 331
 INFO [SystemLoader:prepare_simulation] Built simulation using platform OpenCL with properties {'Precision': 'mixed'}
